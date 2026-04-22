@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Services – Zakázky (B2B)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #f8f9fa; }
+    #sidebar { width: 240px; min-height: 100vh; background: #343a40; position: fixed; top: 0; left: 0; z-index: 100; overflow-y: auto; }
+    #main { margin-left: 240px; }
+    .sidebar-logo { color: #fff; font-weight: 700; font-size: 1.1rem; padding: 14px 16px; border-bottom: 1px solid #495057; }
+    .sidebar-link { color: #adb5bd; text-decoration: none; display: flex; align-items: center; padding: 8px 16px; font-size: 0.875rem; border: none; background: none; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar-link.active { background: #0d6efd; color: #fff; }
+    .sidebar-sub { color: #adb5bd; text-decoration: none; display: block; padding: 5px 16px 5px 44px; font-size: 0.8rem; }
+    .sidebar-sub:hover { color: #fff; }
+    .sidebar-sub.active { color: #fff; font-weight: 500; }
+    .topbar { background: #fff; border-bottom: 1px solid #dee2e6; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="data.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+
+const STAVY    = ['', 'Nová', 'Čeká na zpracování', 'Ve skladu', 'Připravena k expedici', 'Expedováno', 'Uzavřena', 'Stornována', 'Nekompletkta', 'Reklamace'];
+const DOPRAVY  = ['', 'PPL', 'DPD', 'GLS Business', 'DHL Express', 'DHL Freight', 'Zásilkovna', 'Osobní odběr'];
+const PRIORITY = ['', 'Normální', 'Vysoká', 'Urgentní'];
+
+function stavBadge(stav) {
+  const m = { 'Nová':'bg-secondary','Čeká na zpracování':'bg-warning text-dark','Ve skladu':'bg-info text-dark','Připravena k expedici':'bg-primary','Expedováno':'bg-success','Uzavřena':'bg-secondary','Stornována':'bg-danger','Nekompletkta':'bg-dark','Reklamace':'bg-danger' };
+  return <span className={`badge ${m[stav]||'bg-secondary'}`}>{stav}</span>;
+}
+function prioritaBadge(p) {
+  const m = { 'Normální':'bg-secondary','Vysoká':'bg-warning text-dark','Urgentní':'bg-danger' };
+  return <span className={`badge ${m[p]||'bg-secondary'}`}>{p}</span>;
+}
+
+function Sidebar() {
+  const [zakazkyOpen, setZakazkyOpen] = React.useState(true);
+  const [skladOpen, setSkladOpen]     = React.useState(false);
+  return (
+    <div id="sidebar">
+      <div className="sidebar-logo"><i className="bi bi-box-seam me-2"></i>Services</div>
+      <nav className="mt-1">
+        <a href="#" className="sidebar-link"><i className="bi bi-speedometer2 me-2"></i>Dashboard</a>
+        <button className="sidebar-link active" onClick={() => setZakazkyOpen(o => !o)}>
+          <i className="bi bi-bag-check me-2"></i>Zakázky (B2B)
+          <i className={`bi bi-chevron-${zakazkyOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {zakazkyOpen && <>
+          <a href="index.html" className="sidebar-sub active">Zakázky</a>
+          <a href="#" className="sidebar-sub">Stavy zakázek</a>
+          <a href="#" className="sidebar-sub">Typ platby</a>
+          <a href="#" className="sidebar-sub">Doprava</a>
+          <a href="#" className="sidebar-sub">Statistiky zakázek</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-people me-2"></i>Klienti</a>
+        <button className="sidebar-link" onClick={() => setSkladOpen(o => !o)}>
+          <i className="bi bi-buildings me-2"></i>Sklad Pardubice
+          <i className={`bi bi-chevron-${skladOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {skladOpen && <>
+          <a href="#" className="sidebar-sub">Závozy (příjem)</a>
+          <a href="#" className="sidebar-sub">Pozice & Naskladnění</a>
+          <a href="#" className="sidebar-sub">Sběr & Kompletace</a>
+          <a href="#" className="sidebar-sub">Expedice</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-shop me-2"></i>Prodejna</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-arrow-return-left me-2"></i>Reklamace & Vratky</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-cart me-2"></i>Objednávky (B2C)</a>
+        <hr style={{borderColor:'#495057',margin:'8px 16px'}} />
+        <a href="#" className="sidebar-link"><i className="bi bi-gear me-2"></i>Nastavení</a>
+      </nav>
+    </div>
+  );
+}
+
+function Topbar() {
+  return (
+    <div className="topbar">
+      <button className="btn btn-link text-dark p-0"><i className="bi bi-list fs-4"></i></button>
+      <div className="d-flex align-items-center gap-2">
+        <div className="dropdown">
+          <button className="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <i className="bi bi-person-circle me-1"></i>Nákupčí HP
+          </button>
+          <ul className="dropdown-menu dropdown-menu-end">
+            <li><a className="dropdown-item" href="#">Pracovník zákaznické podpory</a></li>
+            <li><a className="dropdown-item active" href="#">Nákupčí HP</a></li>
+            <li><a className="dropdown-item" href="#">Fakturant HP</a></li>
+            <li><a className="dropdown-item" href="#">Skladník</a></li>
+          </ul>
+        </div>
+        <button className="btn btn-secondary btn-sm">Odhlásit</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [filtr, setFiltr] = React.useState({ cislo:'', klient:'', stav:'', doprava:'', priorita:'' });
+  const [aktivni, setAktivni] = React.useState({...filtr});
+
+  const set = (e) => setFiltr(f => ({...f, [e.target.name]: e.target.value}));
+  const vyhledat = () => setAktivni({...filtr});
+  const vymazat  = () => { const p={cislo:'',klient:'',stav:'',doprava:'',priorita:''}; setFiltr(p); setAktivni(p); };
+
+  const zakazky = ZAKAZKY_DATA.filter(z => {
+    if (aktivni.cislo    && !z.id.toLowerCase().includes(aktivni.cislo.toLowerCase())) return false;
+    if (aktivni.klient   && !z.klient.name.toLowerCase().includes(aktivni.klient.toLowerCase()) && !z.klient.ico.includes(aktivni.klient)) return false;
+    if (aktivni.stav     && z.stav     !== aktivni.stav)     return false;
+    if (aktivni.doprava  && z.doprava  !== aktivni.doprava)  return false;
+    if (aktivni.priorita && z.priorita !== aktivni.priorita) return false;
+    return true;
+  });
+
+  const celkem = (z) => z.polozky.reduce((s,p) => s + Math.round(p.price * p.qty * (1 - p.sleva/100)), 0);
+  const fmt    = (n) => n.toLocaleString('cs-CZ') + ' Kč';
+
+  return (
+    <>
+      <Sidebar />
+      <div id="main">
+        <Topbar />
+        <div className="container-fluid py-3 px-4">
+
+          <div className="d-flex align-items-center justify-content-between mb-1">
+            <div>
+              <h4 className="mb-0 fw-semibold">Zakázky (B2B)</h4>
+              <nav><ol className="breadcrumb mb-0" style={{fontSize:'0.8rem'}}>
+                <li className="breadcrumb-item"><a href="#" className="text-decoration-none">Dashboard</a></li>
+                <li className="breadcrumb-item active">Zakázky (B2B)</li>
+              </ol></nav>
+            </div>
+            <a href="nova-zakazka.html" className="btn btn-primary">
+              <i className="bi bi-plus-lg me-1"></i>Vytvořit zakázku
+            </a>
+          </div>
+
+          {/* Filtr */}
+          <div className="card shadow-sm mb-3 mt-3">
+            <div className="card-body py-2">
+              <div className="row g-2 align-items-end">
+                <div className="col-md-2">
+                  <label className="form-label form-label-sm mb-1 text-muted">Číslo zakázky</label>
+                  <input name="cislo" value={filtr.cislo} onChange={set} className="form-control form-control-sm" placeholder="Z-2026-…" />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label form-label-sm mb-1 text-muted">Klient</label>
+                  <input name="klient" value={filtr.klient} onChange={set} className="form-control form-control-sm" placeholder="název nebo IČO" />
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label form-label-sm mb-1 text-muted">Stav</label>
+                  <select name="stav" value={filtr.stav} onChange={set} className="form-select form-select-sm">
+                    {STAVY.map(s => <option key={s} value={s}>{s||'Vše'}</option>)}
+                  </select>
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label form-label-sm mb-1 text-muted">Doprava</label>
+                  <select name="doprava" value={filtr.doprava} onChange={set} className="form-select form-select-sm">
+                    {DOPRAVY.map(d => <option key={d} value={d}>{d||'Vše'}</option>)}
+                  </select>
+                </div>
+                <div className="col-md-1">
+                  <label className="form-label form-label-sm mb-1 text-muted">Priorita</label>
+                  <select name="priorita" value={filtr.priorita} onChange={set} className="form-select form-select-sm">
+                    {PRIORITY.map(p => <option key={p} value={p}>{p||'Vše'}</option>)}
+                  </select>
+                </div>
+                <div className="col-md-2 d-flex gap-2">
+                  <button className="btn btn-primary btn-sm" onClick={vyhledat}><i className="bi bi-search me-1"></i>Vyhledat</button>
+                  <button className="btn btn-secondary btn-sm" onClick={vymazat}>Vymazat</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabulka */}
+          <div className="card shadow-sm">
+            <div className="card-body p-0">
+              <div className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
+                <span className="small text-muted">Nalezeno: <strong>{zakazky.length}</strong> zakázek</span>
+                <button className="btn btn-outline-secondary btn-sm"><i className="bi bi-download me-1"></i>Export</button>
+              </div>
+              <div className="table-responsive">
+                <table className="table table-bordered table-hover table-sm mb-0">
+                  <thead className="table-dark">
+                    <tr>
+                      <th style={{width:130}}>Číslo</th>
+                      <th style={{width:150}}>Stav</th>
+                      <th>Klient</th>
+                      <th style={{width:70}} className="text-center">Pol.</th>
+                      <th style={{width:110}} className="text-end">Celkem</th>
+                      <th style={{width:120}}>Doprava</th>
+                      <th style={{width:140}}>Platba</th>
+                      <th style={{width:100}} className="text-center">Priorita</th>
+                      <th style={{width:130}}>Řešitel</th>
+                      <th style={{width:105}}>Vytvořeno</th>
+                      <th style={{width:60}} className="text-center">Akce</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {zakazky.length === 0 && (
+                      <tr><td colSpan={11} className="text-center text-muted py-4">Žádné zakázky neodpovídají filtru.</td></tr>
+                    )}
+                    {zakazky.map(z => (
+                      <tr key={z.id}>
+                        <td>
+                          <a href={`detail-zakazka.html?id=${z.id}`} className="text-decoration-none fw-semibold">{z.id}</a>
+                        </td>
+                        <td>{stavBadge(z.stav)}</td>
+                        <td>
+                          <div className="small fw-semibold">{z.klient.name}</div>
+                          <div className="text-muted" style={{fontSize:'0.75rem'}}>IČO: {z.klient.ico}</div>
+                        </td>
+                        <td className="text-center">
+                          <span className="badge bg-light text-dark border">{z.polozky.length}</span>
+                        </td>
+                        <td className="text-end fw-semibold small">{fmt(celkem(z))}</td>
+                        <td className="small">{z.doprava}</td>
+                        <td className="small">{z.platba}</td>
+                        <td className="text-center">{prioritaBadge(z.priorita)}</td>
+                        <td className="small">{z.resitel}</td>
+                        <td className="small">{z.datum}</td>
+                        <td className="text-center">
+                          <div className="dropdown">
+                            <button className="btn btn-sm btn-outline-secondary py-0 px-1" data-bs-toggle="dropdown">
+                              <i className="bi bi-three-dots"></i>
+                            </button>
+                            <ul className="dropdown-menu dropdown-menu-end">
+                              <li><a className="dropdown-item" href={`detail-zakazka.html?id=${z.id}`}><i className="bi bi-eye me-2"></i>Detail</a></li>
+                              <li><a className="dropdown-item" href="#"><i className="bi bi-pencil me-2"></i>Upravit</a></li>
+                              <li><hr className="dropdown-divider" /></li>
+                              <li><a className="dropdown-item text-danger" href="#"><i className="bi bi-x-circle me-2"></i>Stornovat</a></li>
+                            </ul>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

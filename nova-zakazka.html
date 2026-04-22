@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Services – Nová zakázka</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #f8f9fa; }
+    #sidebar { width: 240px; min-height: 100vh; background: #343a40; position: fixed; top: 0; left: 0; z-index: 100; overflow-y: auto; }
+    #main { margin-left: 240px; }
+    .sidebar-logo { color: #fff; font-weight: 700; font-size: 1.1rem; padding: 14px 16px; border-bottom: 1px solid #495057; }
+    .sidebar-link { color: #adb5bd; text-decoration: none; display: flex; align-items: center; padding: 8px 16px; font-size: 0.875rem; border: none; background: none; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar-link.active { background: #0d6efd; color: #fff; }
+    .sidebar-sub { color: #adb5bd; text-decoration: none; display: block; padding: 5px 16px 5px 44px; font-size: 0.8rem; }
+    .sidebar-sub:hover { color: #fff; }
+    .sidebar-sub.active { color: #fff; font-weight: 500; }
+    .topbar { background: #fff; border-bottom: 1px solid #dee2e6; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .section-title { font-size: 0.875rem; font-weight: 600; border-bottom: 1px solid #dee2e6; padding-bottom: 8px; margin-bottom: 16px; color: #343a40; }
+    .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #dee2e6; border-top: none; border-radius: 0 0 4px 4px; z-index: 500; max-height: 240px; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .autocomplete-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    .autocomplete-item:hover { background: #f8f9fa; }
+    .autocomplete-item:last-child { border-bottom: none; }
+    .product-search-results { position: absolute; top: 100%; left: 0; right: 0; background: #fff; border: 1px solid #dee2e6; border-top: none; z-index: 500; max-height: 280px; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 0 0 4px 4px; }
+    .product-result-item { padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f0f0f0; }
+    .product-result-item:hover { background: #f0f7ff; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+
+const KLIENTI = [
+  { id: 5546,   name: 'VINECO - Vinné sklepy Chomutov s.r.o.', city: 'Chomutov',        country: 'CZ', street: 'Lipská 2023/0',          zip: '430 03', ico: '25001477',  dic: 'CZ25001477'  },
+  { id: 1066,   name: 'RADANSPORT s.r.o.',                     city: 'České Budějovice', country: 'CZ', street: 'Za Otýlií 2864/10',      zip: '370 01', ico: '26098806',  dic: 'CZ26098806'  },
+  { id: 843,    name: 'M-SOLAR.TOP, s.r.o.',                   city: 'Olomouc',          country: 'CZ', street: 'Dolní novosadská 64/79', zip: '779 00', ico: '27789420',  dic: 'CZ27789420'  },
+  { id: 4161,   name: 'Viscuma s.r.o.',                        city: 'Zábřeh',           country: 'CZ', street: 'Václavov 91/0',          zip: '789 01', ico: '27789977',  dic: 'CZ27789977'  },
+  { id: 8872,   name: 'Penguin Company s.r.o.',                city: 'Poděbrady',        country: 'CZ', street: 'Dvořákova 794/0',        zip: '290 01', ico: '05520240',  dic: 'CZ05520240'  },
+  { id: 8877,   name: 'JINACK s.r.o.',                        city: 'Varnsdorf',         country: 'CZ', street: 'Polní 1682/0',           zip: '407 47', ico: '05401330',  dic: 'CZ05401330'  },
+  { id: 36501,  name: 'Timber PRO s.r.o.',                    city: 'Přestavlky u Čerčan', country: 'CZ', street: 'Čistec 6',            zip: '257 22', ico: '02767813',  dic: 'CZ02767813'  },
+  { id: 12203,  name: 'Academy partners, spol. s r.o.',       city: 'Praha',             country: 'CZ', street: 'Husitská 160/49',        zip: '130 00', ico: '26500582',  dic: 'CZ26500582'  },
+  { id: 18968,  name: 'Stopni to s.r.o.',                     city: 'Praha',             country: 'CZ', street: 'Budečská 1026/14',       zip: '120 00', ico: '03909042',  dic: 'CZ03909042'  },
+  { id: 84906,  name: 'Rekreační areál Zbraslavice s.r.o.',   city: 'Zbraslavice',       country: 'CZ', street: 'Zbraslavice 255',        zip: '285 21', ico: '09774939',  dic: 'CZ09774939'  },
+  { id: 98184,  name: 'himba.cz s.r.o.',                      city: 'Opava',             country: 'CZ', street: 'Vrchní 86/30',           zip: '747 05', ico: '06707050',  dic: 'CZ06707050'  },
+  { id: 24471,  name: 'RXR s.r.o.',                           city: 'Banská Bystrica',   country: 'SK', street: 'Čs. armády 1617/24',    zip: '974 01', ico: '44562829',  dic: 'SK2022736177'},
+  { id: 6069,   name: 'Egoé kovo a.s.',                       city: 'Bílovice',          country: 'CZ', street: 'Bílovice 519/0',         zip: '687 12', ico: '25549227',  dic: 'CZ25549227'  },
+  { id: 37944,  name: 'MOOD Yoga, s.r.o.',                    city: 'Praha',             country: 'CZ', street: 'Argentinská 1023/24',    zip: '170 00', ico: '08801380',  dic: 'CZ08801380'  },
+  { id: 910,    name: 'Práh jižní Morava, z.ú.',              city: 'Brno',              country: 'CZ', street: 'Tuřanská 199/12',        zip: '620 00', ico: '70288101',  dic: 'CZ70288101'  },
+];
+
+const PRODUKTY = [
+  { id: 549353, name: "Dámská bunda Regatta Women's Kadley Midlayer - M / světle modrá",  short: "Dámská bunda Regatta Kadley Midlayer",    ean: '5063516372998', price: 1099, producer: 'Regatta',       cat: 'Oblečení / Mikiny'           },
+  { id: 457667, name: 'Pánské turistické boty Salewa Puez 2 Mid Ptx M - 43 / černá',      short: 'Pánské boty Salewa Puez 2 Mid Ptx',       ean: '4053866876421', price: 4499, producer: 'Salewa',        cat: 'Boty / Trekové boty'         },
+  { id: 533608, name: 'Dětský klobouk Reima Mustekala - 52-54 cm / fialová',              short: 'Dětský klobouk Reima Mustekala',          ean: '6438557322650', price: 690,  producer: 'Reima',         cat: 'Oblečení / Doplňky'          },
+  { id: 428042, name: 'Dámský batoh Deuter AC Lite 21 SL',                                short: 'Dámský batoh Deuter AC Lite 21 SL',       ean: '',              price: 2379, producer: 'Deuter',        cat: 'Batohy / Turistické batohy'  },
+  { id: 540723, name: 'Pomocná karabina Edelrid Micro 3 - oranžová',                      short: 'Pomocná karabina Edelrid Micro 3',        ean: '4021573304292', price: 79,   producer: 'Edelrid',       cat: 'Horolezecké vybavení'        },
+  { id: 450590, name: 'Skládací hrnec Warg Fold Cookpot 2,5l - zelená',                   short: 'Skládací hrnec Warg Fold Cookpot 2,5l',  ean: '8595698838193', price: 599,  producer: 'Warg',          cat: 'Vybavení / Nádobí'           },
+  { id: 450718, name: 'Lezečky La Sportiva Ondra Comp - 44,5 / černá/žlutá',              short: 'Lezečky La Sportiva Ondra Comp',          ean: '8058428092499', price: 4049, producer: 'La Sportiva',  cat: 'Horolezecké vybavení'        },
+  { id: 497286, name: 'Dámská lyžařská bunda Dare 2b Sk iLife Jacket - XXS / fialová',    short: 'Dámská lyžařská bunda Dare 2b',          ean: '5063516199434', price: 2299, producer: 'Dare 2b',      cat: 'Oblečení / Zimní bundy'      },
+  { id: 342289, name: 'Ledvinka Osprey Seral 7 2025 - modrá',                             short: 'Ledvinka Osprey Seral 7 2025',            ean: '843820159776',  price: 1979, producer: 'Osprey',        cat: 'Batohy / Ledvinky'           },
+  { id: 453953, name: 'Turistický stan Easy Camp Setesdal 3 - zelená',                    short: 'Turistický stan Easy Camp Setesdal 3',   ean: '5709388144690', price: 2990, producer: 'Easy Camp',    cat: 'Stany / Turistické stany'    },
+  { id: 451235, name: 'Lezečky La Sportiva Tarantula - 44 / šedá/zelená',                 short: 'Lezečky La Sportiva Tarantula',           ean: '8058428141654', price: 2059, producer: 'La Sportiva',  cat: 'Horolezecké vybavení'        },
+  { id: 185737, name: 'Ruční ohřívač Lifesystems Rechargeable Hand Warmer',               short: 'Ruční ohřívač Lifesystems',               ean: '5031863424608', price: 749,  producer: 'Lifesystems',  cat: 'Vybavení / Cestovní doplňky' },
+  { id: 419191, name: 'Vložka do spacáku Sea to Summit Breeze Liner Mummy Compact - modrá',short: 'Vložka Sea to Summit Breeze Liner',      ean: '9327868158270', price: 1209, producer: 'Sea to Summit', cat: 'Doplňky ke spacákům'         },
+  { id: 474526, name: 'Ponožky Zulu Merino Lite 3 pack - 39-42 / růžová',                 short: 'Ponožky Zulu Merino Lite 3 pack',         ean: '8595698841803', price: 379,  producer: 'Zulu',          cat: 'Oblečení / Ponožky'          },
+  { id: 308545, name: 'Pánská bunda Direct Alpine PEAK',                                  short: 'Pánská bunda Direct Alpine PEAK',         ean: '',              price: 3529, producer: 'Direct Alpine', cat: 'Oblečení / Jarní bundy'      },
+];
+
+const RESITELE = ['Jana Nováková', 'Pavel Kratochvíl', 'Tomáš Veselý', 'Markéta Horáková', 'Jiří Blažek'];
+const DOPRAVY = ['PPL', 'DPD', 'GLS Business', 'DHL Express', 'DHL Freight', 'Zásilkovna', 'Osobní odběr'];
+const PLATBY  = ['Faktura 14 dní', 'Faktura 30 dní', 'Faktura 60 dní', 'Převod předem', 'Karta online', 'Hotovost'];
+
+function genId() {
+  const n = Math.floor(Math.random() * 10) + 43;
+  return `Z-2026-00${n}`;
+}
+
+function Sidebar() {
+  const [zakazkyOpen, setZakazkyOpen] = React.useState(true);
+  const [skladOpen, setSkladOpen] = React.useState(false);
+  return (
+    <div id="sidebar">
+      <div className="sidebar-logo"><i className="bi bi-box-seam me-2"></i>Services</div>
+      <nav className="mt-1">
+        <a href="#" className="sidebar-link"><i className="bi bi-speedometer2 me-2"></i>Dashboard</a>
+        <button className="sidebar-link active" onClick={() => setZakazkyOpen(o => !o)}>
+          <i className="bi bi-bag-check me-2"></i>Zakázky (B2B)
+          <i className={`bi bi-chevron-${zakazkyOpen ? 'down' : 'right'} ms-auto`}></i>
+        </button>
+        {zakazkyOpen && <>
+          <a href="index.html" className="sidebar-sub active">Zakázky</a>
+          <a href="#" className="sidebar-sub">Stavy zakázek</a>
+          <a href="#" className="sidebar-sub">Typ platby</a>
+          <a href="#" className="sidebar-sub">Doprava</a>
+          <a href="#" className="sidebar-sub">Statistiky zakázek</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-people me-2"></i>Klienti</a>
+        <button className="sidebar-link" onClick={() => setSkladOpen(o => !o)}>
+          <i className="bi bi-buildings me-2"></i>Sklad Pardubice
+          <i className={`bi bi-chevron-${skladOpen ? 'down' : 'right'} ms-auto`}></i>
+        </button>
+        {skladOpen && <>
+          <a href="#" className="sidebar-sub">Závozy (příjem)</a>
+          <a href="#" className="sidebar-sub">Pozice & Naskladnění</a>
+          <a href="#" className="sidebar-sub">Sběr & Kompletace</a>
+          <a href="#" className="sidebar-sub">Expedice</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-shop me-2"></i>Prodejna</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-arrow-return-left me-2"></i>Reklamace & Vratky</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-cart me-2"></i>Objednávky (B2C)</a>
+        <hr style={{borderColor: '#495057', margin: '8px 16px'}} />
+        <a href="#" className="sidebar-link"><i className="bi bi-gear me-2"></i>Nastavení</a>
+      </nav>
+    </div>
+  );
+}
+
+function Topbar() {
+  return (
+    <div className="topbar">
+      <button className="btn btn-link text-dark p-0"><i className="bi bi-list fs-4"></i></button>
+      <div className="d-flex align-items-center gap-2">
+        <div className="dropdown">
+          <button className="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <i className="bi bi-person-circle me-1"></i>Nákupčí HP
+          </button>
+          <ul className="dropdown-menu dropdown-menu-end">
+            <li><a className="dropdown-item" href="#">Pracovník zákaznické podpory</a></li>
+            <li><a className="dropdown-item active" href="#">Nákupčí HP</a></li>
+            <li><a className="dropdown-item" href="#">Fakturant HP</a></li>
+          </ul>
+        </div>
+        <button className="btn btn-secondary btn-sm">Odhlásit</button>
+      </div>
+    </div>
+  );
+}
+
+function KlientSearch({ onSelect }) {
+  const [query, setQuery] = React.useState('');
+  const [suggestions, setSuggestions] = React.useState([]);
+  const [selected, setSelected] = React.useState(null);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setSuggestions([]); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setQuery(v);
+    setSelected(null);
+    onSelect(null);
+    if (v.length >= 2) {
+      setSuggestions(KLIENTI.filter(k =>
+        k.name.toLowerCase().includes(v.toLowerCase()) ||
+        k.ico.includes(v)
+      ).slice(0, 8));
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSelect = (k) => {
+    setQuery(k.name);
+    setSuggestions([]);
+    setSelected(k);
+    onSelect(k);
+  };
+
+  return (
+    <div ref={wrapRef} className="position-relative">
+      <div className="input-group">
+        <span className="input-group-text"><i className="bi bi-search"></i></span>
+        <input
+          type="text"
+          className={`form-control ${selected ? 'is-valid' : ''}`}
+          placeholder="Hledat klienta (název firmy nebo IČO)…"
+          value={query}
+          onChange={handleChange}
+        />
+        {query && <button className="btn btn-outline-secondary" onClick={() => { setQuery(''); setSuggestions([]); setSelected(null); onSelect(null); }}><i className="bi bi-x"></i></button>}
+      </div>
+      {suggestions.length > 0 && (
+        <div className="autocomplete-list">
+          {suggestions.map(k => (
+            <div key={k.id} className="autocomplete-item" onMouseDown={() => handleSelect(k)}>
+              <div className="fw-semibold small">{k.name}</div>
+              <div className="text-muted" style={{fontSize: '0.78rem'}}>
+                IČO: {k.ico} &nbsp;·&nbsp; DIČ: {k.dic} &nbsp;·&nbsp; {k.city}, {k.country}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {query.length >= 2 && suggestions.length === 0 && !selected && (
+        <div className="autocomplete-list">
+          <div className="autocomplete-item text-muted small">Žádný klient nenalezen. <a href="#">Vytvořit nového klienta</a></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductSearch({ onAdd }) {
+  const [query, setQuery] = React.useState('');
+  const [results, setResults] = React.useState([]);
+  const wrapRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setResults([]); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleChange = (e) => {
+    const v = e.target.value;
+    setQuery(v);
+    if (v.length >= 2) {
+      setResults(PRODUKTY.filter(p =>
+        p.name.toLowerCase().includes(v.toLowerCase()) ||
+        p.ean.includes(v) ||
+        p.producer.toLowerCase().includes(v.toLowerCase())
+      ).slice(0, 8));
+    } else {
+      setResults([]);
+    }
+  };
+
+  const handleAdd = (p) => {
+    onAdd(p);
+    setQuery('');
+    setResults([]);
+  };
+
+  return (
+    <div ref={wrapRef} className="position-relative">
+      <div className="input-group input-group-sm">
+        <span className="input-group-text"><i className="bi bi-upc-scan"></i></span>
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Hledat produkt (název, EAN, výrobce)…"
+          value={query}
+          onChange={handleChange}
+        />
+      </div>
+      {results.length > 0 && (
+        <div className="product-search-results">
+          {results.map(p => (
+            <div key={p.id} className="product-result-item" onMouseDown={() => handleAdd(p)}>
+              <div className="d-flex justify-content-between align-items-start">
+                <div>
+                  <div className="small fw-semibold">{p.short}</div>
+                  <div style={{fontSize: '0.75rem'}} className="text-muted">{p.producer} &nbsp;·&nbsp; {p.cat} {p.ean && <>&nbsp;·&nbsp; EAN: {p.ean}</>}</div>
+                </div>
+                <span className="badge bg-primary ms-2 flex-shrink-0">{p.price.toLocaleString('cs-CZ')} Kč</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function App() {
+  const [zakazkaId] = React.useState(genId());
+  const [klient, setKlient] = React.useState(null);
+  const [params, setParams] = React.useState({ doprava: '', platba: '', priorita: 'Normální', resitel: '', poznamka: '' });
+  const [polozky, setPolozky] = React.useState([]);
+  const [errors, setErrors] = React.useState({});
+  const [toastMsg, setToastMsg] = React.useState('');
+  const [saving, setSaving] = React.useState(false);
+  const toastRef = React.useRef(null);
+
+  const setParam = (k, v) => setParams(p => ({ ...p, [k]: v }));
+
+  const addProduct = (p) => {
+    setPolozky(prev => {
+      const existing = prev.find(r => r.id === p.id);
+      if (existing) return prev.map(r => r.id === p.id ? { ...r, qty: r.qty + 1 } : r);
+      return [...prev, { id: p.id, name: p.short, ean: p.ean, producer: p.producer, price: p.price, qty: 1, sleva: 0 }];
+    });
+  };
+
+  const updateRow = (id, field, value) => {
+    setPolozky(prev => prev.map(r => r.id === id ? { ...r, [field]: Number(value) } : r));
+  };
+
+  const removeRow = (id) => setPolozky(prev => prev.filter(r => r.id !== id));
+
+  const radkyCelkem = (r) => Math.round(r.price * r.qty * (1 - r.sleva / 100));
+  const celkemBezDph = polozky.reduce((s, r) => s + radkyCelkem(r), 0);
+  const dph = Math.round(celkemBezDph * 0.21);
+  const celkemSDph = celkemBezDph + dph;
+
+  const validate = () => {
+    const e = {};
+    if (!klient) e.klient = 'Vyberte klienta.';
+    if (!params.doprava) e.doprava = 'Vyberte způsob dopravy.';
+    if (!params.platba) e.platba = 'Vyberte typ platby.';
+    if (polozky.length === 0) e.polozky = 'Přidejte alespoň jednu položku.';
+    return e;
+  };
+
+  const handleUlozit = () => {
+    const e = validate();
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
+
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      setToastMsg(`Zakázka ${zakazkaId} byla úspěšně vytvořena.`);
+      if (toastRef.current) {
+        const t = new bootstrap.Toast(toastRef.current, { delay: 2500 });
+        t.show();
+      }
+      setTimeout(() => { window.location.href = 'index.html'; }, 2600);
+    }, 800);
+  };
+
+  return (
+    <>
+      <Sidebar />
+      <div id="main">
+        <Topbar />
+        <div className="container-fluid py-3 px-4">
+
+          {/* Hlavička */}
+          <div className="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <h4 className="mb-0 fw-semibold">Nová zakázka (B2B)</h4>
+              <nav aria-label="breadcrumb">
+                <ol className="breadcrumb mb-0" style={{fontSize: '0.8rem'}}>
+                  <li className="breadcrumb-item"><a href="#" className="text-decoration-none">Dashboard</a></li>
+                  <li className="breadcrumb-item"><a href="index.html" className="text-decoration-none">Zakázky (B2B)</a></li>
+                  <li className="breadcrumb-item active">Nová zakázka</li>
+                </ol>
+              </nav>
+            </div>
+            <div className="text-end">
+              <div className="text-muted small">Číslo zakázky</div>
+              <div className="fw-bold fs-5 text-primary">{zakazkaId}</div>
+              <span className="badge bg-secondary">Koncept</span>
+            </div>
+          </div>
+
+          {/* Sekce 1 – Klient */}
+          <div className="card shadow-sm mb-3">
+            <div className="card-body">
+              <div className="section-title"><i className="bi bi-building me-2"></i>Klient</div>
+              <div className="row g-3">
+                <div className="col-md-6">
+                  <label className="form-label small fw-semibold">Vyhledat klienta <span className="text-danger">*</span></label>
+                  <KlientSearch onSelect={setKlient} />
+                  {errors.klient && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1"></i>{errors.klient}</div>}
+                </div>
+                {klient && (
+                  <div className="col-md-6">
+                    <div className="alert alert-info py-2 mb-0 small">
+                      <div className="fw-semibold">{klient.name}</div>
+                      <div>{klient.street}, {klient.zip} {klient.city} &nbsp;·&nbsp; {klient.country}</div>
+                      <div>IČO: {klient.ico} &nbsp;·&nbsp; DIČ: {klient.dic}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {klient && (
+                <div className="row g-3 mt-1">
+                  <div className="col-md-4">
+                    <label className="form-label small fw-semibold">Doručovací adresa</label>
+                    <input className="form-control form-control-sm" defaultValue={klient.street} />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">PSČ</label>
+                    <input className="form-control form-control-sm" defaultValue={klient.zip} />
+                  </div>
+                  <div className="col-md-3">
+                    <label className="form-label small fw-semibold">Město</label>
+                    <input className="form-control form-control-sm" defaultValue={klient.city} />
+                  </div>
+                  <div className="col-md-2">
+                    <label className="form-label small fw-semibold">Země</label>
+                    <input className="form-control form-control-sm" defaultValue={klient.country} />
+                  </div>
+                  <div className="col-md-1">
+                    <label className="form-label small fw-semibold">&nbsp;</label>
+                    <div><button className="btn btn-outline-secondary btn-sm w-100">+</button></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sekce 2 – Parametry zakázky */}
+          <div className="card shadow-sm mb-3">
+            <div className="card-body">
+              <div className="section-title"><i className="bi bi-sliders me-2"></i>Parametry zakázky</div>
+              <div className="row g-3">
+                <div className="col-md-3">
+                  <label className="form-label small fw-semibold">Způsob dopravy <span className="text-danger">*</span></label>
+                  <select className={`form-select form-select-sm ${errors.doprava ? 'is-invalid' : ''}`} value={params.doprava} onChange={e => setParam('doprava', e.target.value)}>
+                    <option value="">Zvolte…</option>
+                    {DOPRAVY.map(d => <option key={d}>{d}</option>)}
+                  </select>
+                  {errors.doprava && <div className="invalid-feedback">{errors.doprava}</div>}
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small fw-semibold">Typ platby <span className="text-danger">*</span></label>
+                  <select className={`form-select form-select-sm ${errors.platba ? 'is-invalid' : ''}`} value={params.platba} onChange={e => setParam('platba', e.target.value)}>
+                    <option value="">Zvolte…</option>
+                    {PLATBY.map(p => <option key={p}>{p}</option>)}
+                  </select>
+                  {errors.platba && <div className="invalid-feedback">{errors.platba}</div>}
+                </div>
+                <div className="col-md-2">
+                  <label className="form-label small fw-semibold">Priorita</label>
+                  <select className="form-select form-select-sm" value={params.priorita} onChange={e => setParam('priorita', e.target.value)}>
+                    <option>Normální</option>
+                    <option>Vysoká</option>
+                    <option>Urgentní</option>
+                  </select>
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label small fw-semibold">Řešitel</label>
+                  <select className="form-select form-select-sm" value={params.resitel} onChange={e => setParam('resitel', e.target.value)}>
+                    <option value="">— nepřiřazen —</option>
+                    {RESITELE.map(r => <option key={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="col-12">
+                  <label className="form-label small fw-semibold">Poznámka k zakázce</label>
+                  <textarea className="form-control form-control-sm" rows={2} placeholder="Nepovinná interní poznámka…" value={params.poznamka} onChange={e => setParam('poznamka', e.target.value)} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Sekce 3 – Položky */}
+          <div className="card shadow-sm mb-3">
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between mb-3">
+                <div className="section-title mb-0"><i className="bi bi-list-ul me-2"></i>Položky zakázky</div>
+                <button className="btn btn-outline-secondary btn-sm"><i className="bi bi-upload me-1"></i>Import CSV/XLS</button>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label small fw-semibold">Přidat produkt (název, EAN nebo výrobce)</label>
+                <ProductSearch onAdd={addProduct} />
+                {errors.polozky && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1"></i>{errors.polozky}</div>}
+              </div>
+
+              {polozky.length > 0 ? (
+                <div className="table-responsive">
+                  <table className="table table-bordered table-sm mb-0">
+                    <thead className="table-dark">
+                      <tr>
+                        <th style={{width: 160}}>EAN</th>
+                        <th>Produkt</th>
+                        <th style={{width: 80}} className="text-center">Počet ks</th>
+                        <th style={{width: 110}} className="text-end">Cena/ks (Kč)</th>
+                        <th style={{width: 80}} className="text-center">Sleva %</th>
+                        <th style={{width: 110}} className="text-end">Celkem (Kč)</th>
+                        <th style={{width: 48}} className="text-center"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {polozky.map(r => (
+                        <tr key={r.id}>
+                          <td className="small text-muted">{r.ean || '—'}</td>
+                          <td>
+                            <div className="small fw-semibold">{r.name}</div>
+                            <div className="text-muted" style={{fontSize: '0.75rem'}}>{r.producer}</div>
+                          </td>
+                          <td>
+                            <input type="number" min={1} className="form-control form-control-sm text-center" value={r.qty} onChange={e => updateRow(r.id, 'qty', e.target.value)} />
+                          </td>
+                          <td>
+                            <input type="number" min={0} className="form-control form-control-sm text-end" value={r.price} onChange={e => updateRow(r.id, 'price', e.target.value)} />
+                          </td>
+                          <td>
+                            <input type="number" min={0} max={100} className="form-control form-control-sm text-center" value={r.sleva} onChange={e => updateRow(r.id, 'sleva', e.target.value)} />
+                          </td>
+                          <td className="text-end fw-semibold small align-middle">{radkyCelkem(r).toLocaleString('cs-CZ')}</td>
+                          <td className="text-center align-middle">
+                            <button className="btn btn-sm btn-outline-danger py-0 px-1" onClick={() => removeRow(r.id)}><i className="bi bi-trash"></i></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="text-center text-muted py-4 border rounded" style={{background: '#fafafa'}}>
+                  <i className="bi bi-inbox fs-3 d-block mb-2 text-secondary"></i>
+                  Zatím žádné položky. Vyhledejte produkt výše nebo importujte soubor.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Souhrn */}
+          {polozky.length > 0 && (
+            <div className="card shadow-sm mb-3">
+              <div className="card-body">
+                <div className="row justify-content-end">
+                  <div className="col-md-4">
+                    <table className="table table-sm mb-0">
+                      <tbody>
+                        <tr>
+                          <td className="text-muted">Celkem bez DPH</td>
+                          <td className="text-end fw-semibold">{celkemBezDph.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                        <tr>
+                          <td className="text-muted">DPH (21 %)</td>
+                          <td className="text-end">{dph.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                        <tr className="table-active fw-bold">
+                          <td>Celkem s DPH</td>
+                          <td className="text-end fs-5">{celkemSDph.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Akční tlačítka */}
+          <div className="d-flex align-items-center gap-2 pb-4">
+            <button className="btn btn-primary" onClick={handleUlozit} disabled={saving}>
+              {saving ? <><span className="spinner-border spinner-border-sm me-2"></span>Ukládám…</> : <><i className="bi bi-check-lg me-1"></i>Uložit zakázku</>}
+            </button>
+            <a href="index.html" className="btn btn-secondary">Zrušit</a>
+            <button className="btn btn-outline-danger ms-auto" onClick={() => { if (confirm('Opravdu zahodit rozdělanou zakázku?')) window.location.href = 'index.html'; }}>
+              <i className="bi bi-x-circle me-1"></i>Zahodit
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Toast */}
+      <div className="toast-container position-fixed bottom-0 end-0 p-3">
+        <div ref={toastRef} className="toast align-items-center text-bg-success border-0" role="alert">
+          <div className="d-flex">
+            <div className="toast-body"><i className="bi bi-check-circle me-2"></i>{toastMsg}</div>
+            <button type="button" className="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

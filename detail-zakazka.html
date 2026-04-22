@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Services – Detail zakázky</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #f8f9fa; }
+    #sidebar { width: 240px; min-height: 100vh; background: #343a40; position: fixed; top: 0; left: 0; z-index: 100; overflow-y: auto; }
+    #main { margin-left: 240px; }
+    .sidebar-logo { color: #fff; font-weight: 700; font-size: 1.1rem; padding: 14px 16px; border-bottom: 1px solid #495057; }
+    .sidebar-link { color: #adb5bd; text-decoration: none; display: flex; align-items: center; padding: 8px 16px; font-size: 0.875rem; border: none; background: none; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar-link.active { background: #0d6efd; color: #fff; }
+    .sidebar-sub { color: #adb5bd; text-decoration: none; display: block; padding: 5px 16px 5px 44px; font-size: 0.8rem; }
+    .sidebar-sub:hover { color: #fff; }
+    .sidebar-sub.active { color: #fff; font-weight: 500; }
+    .topbar { background: #fff; border-bottom: 1px solid #dee2e6; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .section-title { font-size: 0.85rem; font-weight: 600; border-bottom: 1px solid #dee2e6; padding-bottom: 8px; margin-bottom: 14px; color: #343a40; text-transform: uppercase; letter-spacing: 0.03em; }
+    .dl-modal-table td, .dl-modal-table th { font-size: 0.82rem; }
+    .timeline { list-style: none; padding: 0; margin: 0; }
+    .timeline li { display: flex; gap: 12px; padding-bottom: 16px; position: relative; }
+    .timeline li:not(:last-child)::before { content:''; position:absolute; left:15px; top:28px; bottom:0; width:2px; background:#dee2e6; }
+    .tl-dot { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.85rem; }
+    .tl-last .tl-dot { background:#0d6efd; color:#fff; }
+    .tl-past .tl-dot { background:#e9ecef; color:#6c757d; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="data.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+
+const params = new URLSearchParams(window.location.search);
+const ZAKAZKA_ID = params.get('id');
+
+function stavBadge(stav, big) {
+  const m = { 'Nová':'bg-secondary','Čeká na zpracování':'bg-warning text-dark','Ve skladu':'bg-info text-dark','Připravena k expedici':'bg-primary','Expedováno':'bg-success','Uzavřena':'bg-secondary','Stornována':'bg-danger','Nekompletkta':'bg-dark','Reklamace':'bg-danger' };
+  return <span className={`badge ${m[stav]||'bg-secondary'} ${big?'fs-6 px-3 py-2':''}`}>{stav}</span>;
+}
+function prioritaBadge(p) {
+  const m = { 'Normální':'bg-secondary','Vysoká':'bg-warning text-dark','Urgentní':'bg-danger' };
+  return <span className={`badge ${m[p]||'bg-secondary'}`}>{p}</span>;
+}
+function stavDotClass(i, len) { return i === len - 1 ? 'tl-last' : 'tl-past'; }
+
+function Sidebar() {
+  const [zakazkyOpen, setZakazkyOpen] = React.useState(true);
+  const [skladOpen, setSkladOpen]     = React.useState(false);
+  return (
+    <div id="sidebar">
+      <div className="sidebar-logo"><i className="bi bi-box-seam me-2"></i>Services</div>
+      <nav className="mt-1">
+        <a href="#" className="sidebar-link"><i className="bi bi-speedometer2 me-2"></i>Dashboard</a>
+        <button className="sidebar-link active" onClick={() => setZakazkyOpen(o => !o)}>
+          <i className="bi bi-bag-check me-2"></i>Zakázky (B2B)
+          <i className={`bi bi-chevron-${zakazkyOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {zakazkyOpen && <>
+          <a href="index.html" className="sidebar-sub active">Zakázky</a>
+          <a href="#" className="sidebar-sub">Stavy zakázek</a>
+          <a href="#" className="sidebar-sub">Typ platby</a>
+          <a href="#" className="sidebar-sub">Doprava</a>
+          <a href="#" className="sidebar-sub">Statistiky zakázek</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-people me-2"></i>Klienti</a>
+        <button className="sidebar-link" onClick={() => setSkladOpen(o => !o)}>
+          <i className="bi bi-buildings me-2"></i>Sklad Pardubice
+          <i className={`bi bi-chevron-${skladOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {skladOpen && <>
+          <a href="#" className="sidebar-sub">Závozy (příjem)</a>
+          <a href="#" className="sidebar-sub">Pozice & Naskladnění</a>
+          <a href="#" className="sidebar-sub">Sběr & Kompletace</a>
+          <a href="#" className="sidebar-sub">Expedice</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-shop me-2"></i>Prodejna</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-arrow-return-left me-2"></i>Reklamace & Vratky</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-cart me-2"></i>Objednávky (B2C)</a>
+        <hr style={{borderColor:'#495057',margin:'8px 16px'}} />
+        <a href="#" className="sidebar-link"><i className="bi bi-gear me-2"></i>Nastavení</a>
+      </nav>
+    </div>
+  );
+}
+
+function Topbar() {
+  return (
+    <div className="topbar">
+      <button className="btn btn-link text-dark p-0"><i className="bi bi-list fs-4"></i></button>
+      <div className="d-flex align-items-center gap-2">
+        <div className="dropdown">
+          <button className="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <i className="bi bi-person-circle me-1"></i>Nákupčí HP
+          </button>
+          <ul className="dropdown-menu dropdown-menu-end">
+            <li><a className="dropdown-item" href="#">Pracovník zákaznické podpory</a></li>
+            <li><a className="dropdown-item active" href="#">Nákupčí HP</a></li>
+            <li><a className="dropdown-item" href="#">Fakturant HP</a></li>
+            <li><a className="dropdown-item" href="#">Skladník</a></li>
+          </ul>
+        </div>
+        <button className="btn btn-secondary btn-sm">Odhlásit</button>
+      </div>
+    </div>
+  );
+}
+
+function DodaciListModal({ zakazka, dlRef }) {
+  const fmt = n => n.toLocaleString('cs-CZ');
+  const radek = r => Math.round(r.price * r.qty * (1 - r.sleva / 100));
+  const celkem = zakazka.polozky.reduce((s, r) => s + radek(r), 0);
+  return (
+    <div className="modal fade" ref={dlRef} tabIndex="-1">
+      <div className="modal-dialog modal-lg">
+        <div className="modal-content">
+          <div className="modal-header">
+            <h5 className="modal-title"><i className="bi bi-file-text me-2"></i>Dodací list – {zakazka.id}</h5>
+            <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div className="modal-body" id="dl-print-area">
+            <div className="d-flex justify-content-between align-items-start mb-4">
+              <div>
+                <div className="fw-bold fs-5">DODACÍ LIST</div>
+                <div className="text-muted small">4camping / Husky Professional</div>
+                <div className="text-muted small">Pražská 1, 530 02 Pardubice</div>
+              </div>
+              <div className="text-end">
+                <div className="fw-bold">{zakazka.id}</div>
+                <div className="small text-muted">Datum: {zakazka.datum}</div>
+                <div className="small text-muted">Doprava: {zakazka.doprava}</div>
+              </div>
+            </div>
+            <div className="row mb-4">
+              <div className="col-6">
+                <div className="text-muted small text-uppercase fw-semibold mb-1">Odběratel</div>
+                <div className="fw-semibold">{zakazka.klient.name}</div>
+                <div className="small">{zakazka.klient.street}</div>
+                <div className="small">{zakazka.klient.zip} {zakazka.klient.city}</div>
+                <div className="small">IČO: {zakazka.klient.ico} · DIČ: {zakazka.klient.dic}</div>
+              </div>
+              <div className="col-6">
+                <div className="text-muted small text-uppercase fw-semibold mb-1">Doručovací adresa</div>
+                <div className="fw-semibold">{zakazka.klient.name}</div>
+                <div className="small">{zakazka.klient.street}</div>
+                <div className="small">{zakazka.klient.zip} {zakazka.klient.city}, {zakazka.klient.country}</div>
+              </div>
+            </div>
+            <table className="table table-bordered table-sm dl-modal-table">
+              <thead className="table-light">
+                <tr>
+                  <th style={{width:140}}>EAN</th>
+                  <th>Produkt</th>
+                  <th style={{width:60}} className="text-center">Ks</th>
+                  <th style={{width:90}} className="text-end">Cena/ks</th>
+                  <th style={{width:70}} className="text-center">Sleva</th>
+                  <th style={{width:90}} className="text-end">Celkem</th>
+                </tr>
+              </thead>
+              <tbody>
+                {zakazka.polozky.map(r => (
+                  <tr key={r.id}>
+                    <td className="text-muted">{r.ean||'—'}</td>
+                    <td><div>{r.name}</div><small className="text-muted">{r.producer}</small></td>
+                    <td className="text-center">{r.qty}</td>
+                    <td className="text-end">{fmt(r.price)}</td>
+                    <td className="text-center">{r.sleva > 0 ? `${r.sleva} %` : '—'}</td>
+                    <td className="text-end fw-semibold">{fmt(radek(r))}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="table-light">
+                <tr>
+                  <td colSpan={4}></td>
+                  <td className="fw-semibold text-end">Celkem bez DPH:</td>
+                  <td className="text-end fw-semibold">{fmt(celkem)} Kč</td>
+                </tr>
+                <tr>
+                  <td colSpan={4}></td>
+                  <td className="text-end">DPH 21 %:</td>
+                  <td className="text-end">{fmt(Math.round(celkem * 0.21))} Kč</td>
+                </tr>
+                <tr>
+                  <td colSpan={4}></td>
+                  <td className="fw-bold text-end">Celkem s DPH:</td>
+                  <td className="text-end fw-bold">{fmt(Math.round(celkem * 1.21))} Kč</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div className="row mt-4 pt-3 border-top">
+              <div className="col-5">
+                <div className="text-muted small mb-4">Vydal (podpis):</div>
+                <div style={{borderBottom:'1px solid #999',marginBottom:4}}></div>
+                <div className="small text-muted">{zakazka.resitel}</div>
+              </div>
+              <div className="col-5 offset-2">
+                <div className="text-muted small mb-4">Převzal (podpis):</div>
+                <div style={{borderBottom:'1px solid #999',marginBottom:4}}></div>
+                <div className="small text-muted">&nbsp;</div>
+              </div>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Zavřít</button>
+            <button type="button" className="btn btn-primary" onClick={() => window.print()}>
+              <i className="bi bi-printer me-1"></i>Tisknout
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const zakazkaInit = ZAKAZKY_DATA.find(z => z.id === ZAKAZKA_ID);
+
+  const [zakazka, setZakazka] = React.useState(zakazkaInit ? {...zakazkaInit, historia: [...zakazkaInit.historia]} : null);
+  const [toastMsg, setToastMsg] = React.useState('');
+  const toastRef = React.useRef(null);
+  const dlRef    = React.useRef(null);
+  const [dlModal, setDlModal] = React.useState(null);
+
+  React.useEffect(() => {
+    if (dlRef.current) setDlModal(new bootstrap.Modal(dlRef.current));
+  }, [zakazka]);
+
+  const showToast = (msg) => {
+    setToastMsg(msg);
+    if (toastRef.current) { const t = new bootstrap.Toast(toastRef.current, {delay:3000}); t.show(); }
+  };
+
+  const zmenStav = (novyStav) => {
+    const now = new Date();
+    const datum = now.toLocaleDateString('cs-CZ', {day:'2-digit',month:'2-digit',year:'numeric'}).replace(/ /g,'') + ' ' +
+                  now.toLocaleTimeString('cs-CZ', {hour:'2-digit',minute:'2-digit'});
+    setZakazka(z => ({
+      ...z,
+      stav: novyStav,
+      historia: [...z.historia, { stav: novyStav, datum, uzivatel: 'Nákupčí HP' }],
+    }));
+    showToast(`Stav změněn na: ${novyStav}`);
+  };
+
+  if (!zakazka) {
+    return (
+      <>
+        <Sidebar />
+        <div id="main">
+          <Topbar />
+          <div className="container-fluid py-4 px-4">
+            <div className="alert alert-danger">Zakázka <strong>{ZAKAZKA_ID || '(neznámé ID)'}</strong> nebyla nalezena. <a href="index.html">Zpět na seznam</a></div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const prechody  = PRECHODY_STAVU[zakazka.stav] || [];
+  const radek     = (r) => Math.round(r.price * r.qty * (1 - r.sleva / 100));
+  const celkemBez = zakazka.polozky.reduce((s, r) => s + radek(r), 0);
+  const dph       = Math.round(celkemBez * 0.21);
+  const celkemS   = celkemBez + dph;
+  const fmt       = (n) => n.toLocaleString('cs-CZ') + ' Kč';
+
+  const stavIcons = {
+    'Nová':'circle','Čeká na zpracování':'clock','Ve skladu':'box-seam','Připravena k expedici':'check-circle',
+    'Expedováno':'truck','Uzavřena':'lock','Stornována':'x-circle','Nekompletkta':'exclamation-triangle','Reklamace':'arrow-return-left',
+  };
+
+  return (
+    <>
+      <Sidebar />
+      <div id="main">
+        <Topbar />
+        <div className="container-fluid py-3 px-4">
+
+          {/* Breadcrumb + hlavička */}
+          <div className="d-flex align-items-start justify-content-between mb-3">
+            <div>
+              <nav><ol className="breadcrumb mb-1" style={{fontSize:'0.8rem'}}>
+                <li className="breadcrumb-item"><a href="#" className="text-decoration-none">Dashboard</a></li>
+                <li className="breadcrumb-item"><a href="index.html" className="text-decoration-none">Zakázky (B2B)</a></li>
+                <li className="breadcrumb-item active">{zakazka.id}</li>
+              </ol></nav>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <h4 className="mb-0 fw-bold">{zakazka.id}</h4>
+                {stavBadge(zakazka.stav, true)}
+                {prioritaBadge(zakazka.priorita)}
+                <span className="text-muted small">vytvořeno {zakazka.datum}</span>
+              </div>
+            </div>
+            <div className="d-flex gap-2 flex-wrap justify-content-end">
+              {prechody.length > 0 && (
+                <div className="dropdown">
+                  <button className="btn btn-outline-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+                    <i className="bi bi-arrow-right-circle me-1"></i>Změnit stav
+                  </button>
+                  <ul className="dropdown-menu dropdown-menu-end">
+                    {prechody.map(s => (
+                      <li key={s}><button className="dropdown-item" onClick={() => zmenStav(s)}>{stavBadge(s)} → {s}</button></li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <button className="btn btn-outline-secondary btn-sm" onClick={() => dlModal && dlModal.show()}>
+                <i className="bi bi-printer me-1"></i>Dodací list
+              </button>
+              <a href="nova-zakazka.html" className="btn btn-secondary btn-sm">
+                <i className="bi bi-pencil me-1"></i>Upravit
+              </a>
+              <a href="index.html" className="btn btn-light btn-sm border">
+                <i className="bi bi-arrow-left me-1"></i>Zpět
+              </a>
+            </div>
+          </div>
+
+          {/* Alert nekompletkta */}
+          {zakazka.stav === 'Nekompletkta' && (
+            <div className="alert alert-danger d-flex align-items-center gap-2 mb-3">
+              <i className="bi bi-exclamation-triangle-fill fs-5"></i>
+              <div><strong>Nekompletkta:</strong> {zakazka.poznamka || 'Zakázka je nekompletní – chybí část zboží.'}</div>
+              <button className="btn btn-sm btn-outline-danger ms-auto">Notifikovat řešitele</button>
+            </div>
+          )}
+
+          <div className="row g-3">
+
+            {/* Levý sloupec */}
+            <div className="col-lg-8">
+
+              {/* Klient + parametry */}
+              <div className="card shadow-sm mb-3">
+                <div className="card-body">
+                  <div className="row g-4">
+                    <div className="col-md-6">
+                      <div className="section-title"><i className="bi bi-building me-2"></i>Klient</div>
+                      <div className="fw-semibold">{zakazka.klient.name}</div>
+                      <div className="small text-muted mt-1">{zakazka.klient.street}, {zakazka.klient.zip} {zakazka.klient.city}</div>
+                      <div className="small text-muted">{zakazka.klient.country}</div>
+                      <div className="mt-2 d-flex gap-3 small">
+                        <div><span className="text-muted">IČO:</span> <strong>{zakazka.klient.ico}</strong></div>
+                        <div><span className="text-muted">DIČ:</span> <strong>{zakazka.klient.dic}</strong></div>
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <div className="section-title"><i className="bi bi-sliders me-2"></i>Parametry</div>
+                      <dl className="row row-cols-2 g-1 mb-0 small">
+                        <dt className="col text-muted fw-normal">Doprava</dt>
+                        <dd className="col mb-0 fw-semibold">{zakazka.doprava}</dd>
+                        <dt className="col text-muted fw-normal">Platba</dt>
+                        <dd className="col mb-0 fw-semibold">{zakazka.platba}</dd>
+                        <dt className="col text-muted fw-normal">Řešitel</dt>
+                        <dd className="col mb-0 fw-semibold">{zakazka.resitel}</dd>
+                        <dt className="col text-muted fw-normal">Sklad. pozice</dt>
+                        <dd className="col mb-0">
+                          {zakazka.pozice !== '—'
+                            ? <span className="badge bg-info text-dark">{zakazka.pozice}</span>
+                            : <span className="text-muted">—</span>}
+                        </dd>
+                      </dl>
+                      {zakazka.poznamka && (
+                        <div className="mt-2 p-2 bg-light rounded small border">
+                          <i className="bi bi-chat-left-text me-1 text-muted"></i>{zakazka.poznamka}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Položky */}
+              <div className="card shadow-sm mb-3">
+                <div className="card-body p-0">
+                  <div className="px-3 py-2 border-bottom">
+                    <span className="section-title mb-0 d-inline-block" style={{border:'none',paddingBottom:0,marginBottom:0}}>
+                      <i className="bi bi-list-ul me-2"></i>Položky zakázky
+                    </span>
+                    <span className="badge bg-secondary ms-2">{zakazka.polozky.length} pol.</span>
+                  </div>
+                  <div className="table-responsive">
+                    <table className="table table-bordered table-sm table-hover mb-0">
+                      <thead className="table-dark">
+                        <tr>
+                          <th style={{width:150}}>EAN</th>
+                          <th>Produkt</th>
+                          <th style={{width:60}} className="text-center">Ks</th>
+                          <th style={{width:100}} className="text-end">Cena/ks</th>
+                          <th style={{width:70}} className="text-center">Sleva</th>
+                          <th style={{width:110}} className="text-end">Celkem</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {zakazka.polozky.map(r => (
+                          <tr key={r.id}>
+                            <td className="text-muted small">{r.ean || '—'}</td>
+                            <td>
+                              <div className="small fw-semibold">{r.name}</div>
+                              <div className="text-muted" style={{fontSize:'0.75rem'}}>{r.producer}</div>
+                            </td>
+                            <td className="text-center fw-semibold">{r.qty}</td>
+                            <td className="text-end small">{r.price.toLocaleString('cs-CZ')} Kč</td>
+                            <td className="text-center small">{r.sleva > 0 ? <span className="badge bg-warning text-dark">{r.sleva} %</span> : <span className="text-muted">—</span>}</td>
+                            <td className="text-end fw-semibold small">{radek(r).toLocaleString('cs-CZ')} Kč</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot className="table-light">
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td className="text-end text-muted small">Bez DPH:</td>
+                          <td className="text-end fw-semibold small">{celkemBez.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td className="text-end text-muted small">DPH 21 %:</td>
+                          <td className="text-end small">{dph.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                        <tr>
+                          <td colSpan={4}></td>
+                          <td className="text-end fw-bold">Celkem s DPH:</td>
+                          <td className="text-end fw-bold fs-6">{celkemS.toLocaleString('cs-CZ')} Kč</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Pravý sloupec – historie */}
+            <div className="col-lg-4">
+              <div className="card shadow-sm">
+                <div className="card-body">
+                  <div className="section-title"><i className="bi bi-clock-history me-2"></i>Historie stavů</div>
+                  <ul className="timeline">
+                    {[...zakazka.historia].reverse().map((h, i) => (
+                      <li key={i} className={stavDotClass(i, zakazka.historia.length)}>
+                        <div className={`tl-dot ${i === 0 ? 'tl-last' : 'tl-past'}`}>
+                          <i className={`bi bi-${stavIcons[h.stav]||'circle'}`}></i>
+                        </div>
+                        <div>
+                          <div className="fw-semibold small">{h.stav}</div>
+                          <div className="text-muted" style={{fontSize:'0.75rem'}}>{h.datum}</div>
+                          <div className="text-muted" style={{fontSize:'0.75rem'}}>{h.uzivatel}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* Modal dodací list */}
+      {zakazka && <DodaciListModal zakazka={zakazka} dlRef={dlRef} />}
+
+      {/* Toast */}
+      <div className="toast-container position-fixed bottom-0 end-0 p-3">
+        <div ref={toastRef} className="toast align-items-center text-bg-success border-0" role="alert">
+          <div className="d-flex">
+            <div className="toast-body"><i className="bi bi-check-circle me-2"></i>{toastMsg}</div>
+            <button type="button" className="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

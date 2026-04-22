@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Services – Stavy zakázek</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    body { background: #f8f9fa; }
+    #sidebar { width: 240px; min-height: 100vh; background: #343a40; position: fixed; top: 0; left: 0; z-index: 100; overflow-y: auto; }
+    #main { margin-left: 240px; }
+    .sidebar-logo { color: #fff; font-weight: 700; font-size: 1.1rem; padding: 14px 16px; border-bottom: 1px solid #495057; }
+    .sidebar-link { color: #adb5bd; text-decoration: none; display: flex; align-items: center; padding: 8px 16px; font-size: 0.875rem; border: none; background: none; width: 100%; text-align: left; cursor: pointer; }
+    .sidebar-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .sidebar-link.active { background: #0d6efd; color: #fff; }
+    .sidebar-sub { color: #adb5bd; text-decoration: none; display: block; padding: 5px 16px 5px 44px; font-size: 0.8rem; }
+    .sidebar-sub:hover { color: #fff; }
+    .sidebar-sub.active { color: #fff; font-weight: 500; }
+    .topbar { background: #fff; border-bottom: 1px solid #dee2e6; padding: 8px 20px; display: flex; align-items: center; justify-content: space-between; }
+    .stat-card { border-left: 4px solid transparent; transition: box-shadow .15s; cursor: default; }
+    .stat-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1) !important; }
+    .flow-arrow { color: #adb5bd; font-size: 0.75rem; }
+    .progress-bar-label { font-size: 0.7rem; white-space: nowrap; }
+    .kanban-col { min-width: 0; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="data.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+
+const DEFINICE_STAVU = [
+  {
+    stav: 'Nová',
+    bs: 'bg-secondary',
+    icon: 'circle',
+    popis: 'Zakázka byla právě vytvořena, čeká na přiřazení řešitele a zahájení zpracování.',
+    akce: 'Přiřadit řešitele a potvrdit přijetí.',
+  },
+  {
+    stav: 'Čeká na zpracování',
+    bs: 'bg-warning text-dark',
+    icon: 'clock',
+    popis: 'Zakázka je přijata a přiřazena řešiteli. Čeká na potvrzení dostupnosti zboží a zahájení příjmu na sklad.',
+    akce: 'Ověřit dostupnost položek, potvrdit závoz od dodavatele.',
+  },
+  {
+    stav: 'Ve skladu',
+    bs: 'bg-info text-dark',
+    icon: 'box-seam',
+    popis: 'Zboží dorazilo na sklad Pardubice a je pozicováno na přidělené ZAK-XX-XX-XX pozici. Probíhá kompletace.',
+    akce: 'Zkompletovat, zabalit a připravit k expedici.',
+  },
+  {
+    stav: 'Připravena k expedici',
+    bs: 'bg-primary',
+    icon: 'check-circle',
+    popis: 'Zakázka je plně zkompletována, zabalena a čeká na předání dopravci nebo osobní vyzvednutí.',
+    akce: 'Předat dopravci nebo vydat na prodejně.',
+  },
+  {
+    stav: 'Expedováno',
+    bs: 'bg-success',
+    icon: 'truck',
+    popis: 'Zakázka byla předána dopravci nebo vydána zákazníkovi. Čeká se na potvrzení doručení.',
+    akce: 'Sledovat zásilku, potvrdit doručení a uzavřít zakázku.',
+  },
+  {
+    stav: 'Uzavřena',
+    bs: 'bg-secondary',
+    icon: 'lock',
+    popis: 'Zakázka byla úspěšně doručena a uzavřena. Evidována v historii klienta.',
+    akce: '—',
+  },
+  {
+    stav: 'Nekompletkta',
+    bs: 'bg-dark',
+    icon: 'exclamation-triangle',
+    popis: 'Část zboží zakázky není dostupná nebo nedorazila se závozem. Řešitel byl notifikován.',
+    akce: 'Dohledat chybějící zboží, notifikovat klienta, nastavit nový termín.',
+  },
+  {
+    stav: 'Stornována',
+    bs: 'bg-danger',
+    icon: 'x-circle',
+    popis: 'Zakázka byla stornována na žádost klienta nebo interně. Žádné další akce nejsou možné.',
+    akce: '—',
+  },
+  {
+    stav: 'Reklamace',
+    bs: 'bg-danger',
+    icon: 'arrow-return-left',
+    popis: 'Na expedovanou zakázku byla podána reklamace nebo vrácení zboží. Vytvořen reklamační případ.',
+    akce: 'Zpracovat reklamaci, koordinovat s klientem.',
+  },
+];
+
+function Sidebar() {
+  const [zakazkyOpen, setZakazkyOpen] = React.useState(true);
+  const [skladOpen, setSkladOpen]     = React.useState(false);
+  return (
+    <div id="sidebar">
+      <div className="sidebar-logo"><i className="bi bi-box-seam me-2"></i>Services</div>
+      <nav className="mt-1">
+        <a href="#" className="sidebar-link"><i className="bi bi-speedometer2 me-2"></i>Dashboard</a>
+        <button className="sidebar-link active" onClick={() => setZakazkyOpen(o => !o)}>
+          <i className="bi bi-bag-check me-2"></i>Zakázky (B2B)
+          <i className={`bi bi-chevron-${zakazkyOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {zakazkyOpen && <>
+          <a href="index.html"          className="sidebar-sub">Zakázky</a>
+          <a href="stavy-zakazek.html"  className="sidebar-sub active">Stavy zakázek</a>
+          <a href="#"                   className="sidebar-sub">Typ platby</a>
+          <a href="#"                   className="sidebar-sub">Doprava</a>
+          <a href="#"                   className="sidebar-sub">Statistiky zakázek</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-people me-2"></i>Klienti</a>
+        <button className="sidebar-link" onClick={() => setSkladOpen(o => !o)}>
+          <i className="bi bi-buildings me-2"></i>Sklad Pardubice
+          <i className={`bi bi-chevron-${skladOpen?'down':'right'} ms-auto`}></i>
+        </button>
+        {skladOpen && <>
+          <a href="#" className="sidebar-sub">Závozy (příjem)</a>
+          <a href="#" className="sidebar-sub">Pozice & Naskladnění</a>
+          <a href="#" className="sidebar-sub">Sběr & Kompletace</a>
+          <a href="#" className="sidebar-sub">Expedice</a>
+        </>}
+        <a href="#" className="sidebar-link"><i className="bi bi-shop me-2"></i>Prodejna</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-arrow-return-left me-2"></i>Reklamace & Vratky</a>
+        <a href="#" className="sidebar-link"><i className="bi bi-cart me-2"></i>Objednávky (B2C)</a>
+        <hr style={{borderColor:'#495057',margin:'8px 16px'}} />
+        <a href="#" className="sidebar-link"><i className="bi bi-gear me-2"></i>Nastavení</a>
+      </nav>
+    </div>
+  );
+}
+
+function Topbar() {
+  return (
+    <div className="topbar">
+      <button className="btn btn-link text-dark p-0"><i className="bi bi-list fs-4"></i></button>
+      <div className="d-flex align-items-center gap-2">
+        <div className="dropdown">
+          <button className="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+            <i className="bi bi-person-circle me-1"></i>Nákupčí HP
+          </button>
+          <ul className="dropdown-menu dropdown-menu-end">
+            <li><a className="dropdown-item" href="#">Pracovník zákaznické podpory</a></li>
+            <li><a className="dropdown-item active" href="#">Nákupčí HP</a></li>
+            <li><a className="dropdown-item" href="#">Fakturant HP</a></li>
+            <li><a className="dropdown-item" href="#">Skladník</a></li>
+          </ul>
+        </div>
+        <button className="btn btn-secondary btn-sm">Odhlásit</button>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const celkemBez = (z) => z.polozky.reduce((s, p) => s + Math.round(p.price * p.qty * (1 - p.sleva / 100)), 0);
+  const fmt       = (n) => n.toLocaleString('cs-CZ') + ' Kč';
+  const total     = ZAKAZKY_DATA.length;
+
+  // agregace per stav
+  const agg = {};
+  DEFINICE_STAVU.forEach(d => { agg[d.stav] = { pocet: 0, hodnota: 0 }; });
+  ZAKAZKY_DATA.forEach(z => {
+    if (!agg[z.stav]) agg[z.stav] = { pocet: 0, hodnota: 0 };
+    agg[z.stav].pocet++;
+    agg[z.stav].hodnota += celkemBez(z);
+  });
+
+  // barvy levo-okraje pro stat-card
+  const borderColor = {
+    'Nová': '#6c757d',
+    'Čeká na zpracování': '#ffc107',
+    'Ve skladu': '#0dcaf0',
+    'Připravena k expedici': '#0d6efd',
+    'Expedováno': '#198754',
+    'Uzavřena': '#6c757d',
+    'Nekompletkta': '#212529',
+    'Stornována': '#dc3545',
+    'Reklamace': '#dc3545',
+  };
+
+  // workflow pořadí pro vizualizaci toku
+  const FLOW = [
+    ['Nová'],
+    ['Čeká na zpracování'],
+    ['Ve skladu', 'Nekompletkta'],
+    ['Připravena k expedici'],
+    ['Expedováno'],
+    ['Uzavřena', 'Reklamace', 'Stornována'],
+  ];
+
+  const bsBg = (stav) => {
+    const d = DEFINICE_STAVU.find(x => x.stav === stav);
+    return d ? d.bs : 'bg-secondary';
+  };
+  const bsIcon = (stav) => {
+    const d = DEFINICE_STAVU.find(x => x.stav === stav);
+    return d ? d.icon : 'circle';
+  };
+
+  const aktivni = ZAKAZKY_DATA.filter(z => !['Uzavřena','Stornována'].includes(z.stav)).length;
+  const celkHodnota = ZAKAZKY_DATA.reduce((s, z) => s + celkemBez(z), 0);
+
+  return (
+    <>
+      <Sidebar />
+      <div id="main">
+        <Topbar />
+        <div className="container-fluid py-3 px-4">
+
+          {/* Hlavička */}
+          <div className="mb-3">
+            <h4 className="mb-0 fw-semibold">Stavy zakázek</h4>
+            <nav><ol className="breadcrumb mb-0" style={{fontSize:'0.8rem'}}>
+              <li className="breadcrumb-item"><a href="#" className="text-decoration-none">Dashboard</a></li>
+              <li className="breadcrumb-item"><a href="index.html" className="text-decoration-none">Zakázky (B2B)</a></li>
+              <li className="breadcrumb-item active">Stavy zakázek</li>
+            </ol></nav>
+          </div>
+
+          {/* Souhrnné metriky */}
+          <div className="row g-3 mb-4">
+            <div className="col-md-3">
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Celkem zakázek</div>
+                  <div className="fs-2 fw-bold">{total}</div>
+                  <div className="text-muted small">v systému</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Aktivní zakázky</div>
+                  <div className="fs-2 fw-bold text-primary">{aktivni}</div>
+                  <div className="text-muted small">probíhají právě teď</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Nekompletkty</div>
+                  <div className="fs-2 fw-bold text-danger">{agg['Nekompletkta']?.pocet || 0}</div>
+                  <div className="text-muted small">vyžadují pozornost</div>
+                </div>
+              </div>
+            </div>
+            <div className="col-md-3">
+              <div className="card shadow-sm h-100">
+                <div className="card-body">
+                  <div className="text-muted small">Celková hodnota</div>
+                  <div className="fs-5 fw-bold">{fmt(celkHodnota)}</div>
+                  <div className="text-muted small">bez DPH, všechny zakázky</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Vizualizace toku stavů */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-light fw-semibold small">
+              <i className="bi bi-diagram-3 me-2"></i>Tok stavů zakázky
+            </div>
+            <div className="card-body py-3">
+              <div className="d-flex align-items-center gap-1 flex-wrap">
+                {FLOW.map((skupina, si) => (
+                  <React.Fragment key={si}>
+                    {si > 0 && <i className="bi bi-chevron-right flow-arrow mx-1"></i>}
+                    <div className={`d-flex flex-column gap-1 ${skupina.length > 1 ? 'align-items-center' : ''}`}>
+                      {skupina.map(stav => {
+                        const cnt = agg[stav]?.pocet || 0;
+                        return (
+                          <a key={stav} href={`index.html`} className="text-decoration-none"
+                            title={`${cnt} zakázek ve stavu ${stav}`}>
+                            <span className={`badge ${bsBg(stav)} d-flex align-items-center gap-1 px-2 py-1`}
+                              style={{fontSize:'0.78rem', fontWeight: cnt > 0 ? 700 : 400, opacity: cnt === 0 ? 0.5 : 1}}>
+                              <i className={`bi bi-${bsIcon(stav)}`}></i>
+                              {stav}
+                              {cnt > 0 && <span className="badge bg-white text-dark ms-1" style={{fontSize:'0.7rem'}}>{cnt}</span>}
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </React.Fragment>
+                ))}
+              </div>
+              <div className="mt-2 small text-muted">
+                <i className="bi bi-info-circle me-1"></i>
+                Ze stavu <strong>Ve skladu</strong> může zakázka přejít do <strong>Nekompletkty</strong> a zpět. Ze stavů <strong>Expedováno</strong> nebo <strong>Uzavřena</strong> může vzniknout <strong>Reklamace</strong>. Storno je možné kdykoli před expedicí.
+              </div>
+            </div>
+          </div>
+
+          {/* Karty stavů */}
+          <div className="row g-3 mb-4">
+            {DEFINICE_STAVU.map(d => {
+              const cnt = agg[d.stav]?.pocet || 0;
+              const val = agg[d.stav]?.hodnota || 0;
+              const pct = total > 0 ? Math.round((cnt / total) * 100) : 0;
+              return (
+                <div key={d.stav} className="col-md-6 col-xl-4">
+                  <div className="card shadow-sm h-100 stat-card" style={{borderLeftColor: borderColor[d.stav]}}>
+                    <div className="card-body pb-2">
+                      <div className="d-flex align-items-center justify-content-between mb-2">
+                        <span className={`badge ${d.bs} d-flex align-items-center gap-1`} style={{fontSize:'0.82rem'}}>
+                          <i className={`bi bi-${d.icon}`}></i> {d.stav}
+                        </span>
+                        <div className="text-end">
+                          <span className="fs-4 fw-bold lh-1">{cnt}</span>
+                          <span className="text-muted small ms-1">zakázek</span>
+                        </div>
+                      </div>
+
+                      <div className="progress mb-2" style={{height: 5}}>
+                        <div
+                          className={`progress-bar ${d.bs.includes('text-dark') ? d.bs.replace(' text-dark','') : d.bs}`}
+                          style={{width: `${pct}%`}}
+                        ></div>
+                      </div>
+
+                      <p className="small text-muted mb-2" style={{minHeight:'2.5em'}}>{d.popis}</p>
+
+                      {cnt > 0 && (
+                        <div className="d-flex justify-content-between align-items-center pt-1 border-top">
+                          <span className="small text-muted">Hodnota: <strong className="text-dark">{fmt(val)}</strong></span>
+                          <a href="index.html" className="btn btn-outline-secondary btn-sm py-0 px-2" style={{fontSize:'0.75rem'}}>
+                            Zobrazit <i className="bi bi-arrow-right ms-1"></i>
+                          </a>
+                        </div>
+                      )}
+                      {cnt === 0 && (
+                        <div className="pt-1 border-top">
+                          <span className="small text-muted fst-italic">Žádné zakázky v tomto stavu</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Tabulka přechodů */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-light fw-semibold small">
+              <i className="bi bi-table me-2"></i>Povolené přechody stavů
+            </div>
+            <div className="card-body p-0">
+              <div className="table-responsive">
+                <table className="table table-bordered table-sm table-hover mb-0">
+                  <thead className="table-dark">
+                    <tr>
+                      <th style={{width:200}}>Aktuální stav</th>
+                      <th>Povolené přechody</th>
+                      <th style={{width:280}}>Doporučená akce</th>
+                      <th style={{width:90}} className="text-center">Zakázek</th>
+                      <th style={{width:130}} className="text-end">Hodnota</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {DEFINICE_STAVU.map(d => {
+                      const prechody = PRECHODY_STAVU[d.stav] || [];
+                      const cnt = agg[d.stav]?.pocet || 0;
+                      const val = agg[d.stav]?.hodnota || 0;
+                      return (
+                        <tr key={d.stav} className={cnt > 0 ? '' : 'text-muted'}>
+                          <td>
+                            <span className={`badge ${d.bs} d-inline-flex align-items-center gap-1`}>
+                              <i className={`bi bi-${d.icon}`}></i>{d.stav}
+                            </span>
+                          </td>
+                          <td>
+                            {prechody.length === 0
+                              ? <span className="text-muted small fst-italic">— terminální stav</span>
+                              : <div className="d-flex flex-wrap gap-1">
+                                  {prechody.map(p => (
+                                    <span key={p} className={`badge ${(DEFINICE_STAVU.find(x=>x.stav===p)||{bs:'bg-secondary'}).bs} d-inline-flex align-items-center gap-1`} style={{fontSize:'0.75rem'}}>
+                                      <i className={`bi bi-${(DEFINICE_STAVU.find(x=>x.stav===p)||{icon:'circle'}).icon}`}></i>{p}
+                                    </span>
+                                  ))}
+                                </div>
+                            }
+                          </td>
+                          <td className="small">{d.akce}</td>
+                          <td className="text-center">
+                            {cnt > 0
+                              ? <a href="index.html" className="fw-semibold text-decoration-none">{cnt}</a>
+                              : <span className="text-muted">0</span>}
+                          </td>
+                          <td className="text-end small">
+                            {cnt > 0 ? <strong>{fmt(val)}</strong> : <span className="text-muted">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="table-light">
+                    <tr>
+                      <td colSpan={3} className="fw-semibold small">Celkem</td>
+                      <td className="text-center fw-semibold">{total}</td>
+                      <td className="text-end fw-semibold small">{fmt(celkHodnota)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
